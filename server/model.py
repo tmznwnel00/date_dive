@@ -36,7 +36,7 @@ class User_photo(Base):
     updatedAt = Column(Date)
     
 class Match(Base):
-    __tablename__ = "Match_table"
+    __tablename__ = "Match"
     
     id = Column(Integer, primary_key=True)
     male_id = Column(Integer)

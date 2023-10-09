@@ -25,7 +25,7 @@ class User(Base):
     verified = Column(Boolean)
     signup_date = Column(Date)
     
-class User_photo(Base):
+class UserPhoto(Base):
     __tablename__ = "User_photo"
     
     id = Column(Integer, primary_key=True)
@@ -54,7 +54,7 @@ class Questionnaire(Base):
     createdAt = Column(Date)
     updatedAt = Column(Date)
     
-class User_question_answer(Base):
+class UserQuestionAnswer(Base):
     __tablename__ = "User_question_answer"
     
     id = Column(Integer, primary_key=True)

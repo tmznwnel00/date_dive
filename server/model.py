@@ -23,7 +23,8 @@ class User(Base):
     gender = Column(Enum('male', 'female'))
     nickname = Column(String(15))
     verified = Column(Boolean)
-    signup_date = Column(Date)
+    created_at = Column(Date)
+    updated_at = Column(Date)
     
 class UserPhoto(Base):
     __tablename__ = "User_photo"
@@ -32,8 +33,8 @@ class UserPhoto(Base):
     user_id = Column(Integer)
     s3_path = Column(String)
     photo_index = Column(Integer)
-    createdAt = Column(Date)
-    updatedAt = Column(Date)
+    created_at = Column(Date)
+    updated_at = Column(Date)
     
 class Match(Base):
     __tablename__ = "Match"
@@ -42,8 +43,8 @@ class Match(Base):
     male_id = Column(Integer)
     female_id = Column(Integer) 
     status = Column(Enum('man waiting', 'man refuse', 'woman waiting', 'woman refuse', 'matched'))
-    createdAt = Column(Date)
-    updatedAt = Column(Date)
+    created_at = Column(Date)
+    updated_at = Column(Date)
     
 class Questionnaire(Base):
     __tablename__ = "Questionnaire"
@@ -51,8 +52,8 @@ class Questionnaire(Base):
     id = Column(Integer, primary_key=True)
     description = Column(String)
     options = Column(JSON)
-    createdAt = Column(Date)
-    updatedAt = Column(Date)
+    created_at = Column(Date)
+    updated_at = Column(Date)
     
 class UserQuestionAnswer(Base):
     __tablename__ = "User_question_answer"
@@ -62,8 +63,8 @@ class UserQuestionAnswer(Base):
     question_id = Column(Integer)
     options_answer = Column(Integer)
     text_answer = Column(String)
-    createdAt = Column(Date)
-    updatedAt = Column(Date)
+    created_at = Column(Date)
+    updated_at = Column(Date)
         
     
     

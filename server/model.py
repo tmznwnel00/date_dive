@@ -25,7 +25,7 @@ class User(Base):
     verified = Column(Boolean)
     created_at = Column(Date)
     updated_at = Column(Date)
-    login_id = Column(String)
+    login_id = Column(String(15))
     password = Column(String)
     
 class UserPhoto(Base):

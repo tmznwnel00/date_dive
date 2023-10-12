@@ -25,6 +25,8 @@ class User(Base):
     verified = Column(Boolean)
     created_at = Column(Date)
     updated_at = Column(Date)
+    login_id = Column(String)
+    password = Column(String)
     
 class UserPhoto(Base):
     __tablename__ = "User_photo"

@@ -1,13 +1,14 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 # from model import User
 import model
 from database import SessionLocal, engine
+from typing import Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timedelta
 
 model.Base.metadata.create_all(bind=engine)
 
@@ -19,6 +20,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 class SingupInfo(BaseModel):
     id: str
     password: str
+    
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -39,6 +44,16 @@ def get_db():
         yield db
     finally:
         db.close()
+        
+def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 @app.get("/")
 def root():
@@ -61,8 +76,26 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
         db.refresh(db_user)
         return db_user
     
+@app.post("/api/user/login")
+def login(user: SingupInfo, db: Session = Depends(get_db)):
+    username = user.id
+    password = user.password
+    
+    user = get_user(db, username)
 
-    
-    
-    
-    return "asfsadfsafs"
+    if (user == None or verify_password(password, user.password) == False):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    else:
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": username}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+        
+        
+        

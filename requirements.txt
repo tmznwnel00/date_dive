@@ -4,5 +4,5 @@ sqlalchemy
 python-jose[cryptography]
 passlib[bcrypt]
 mysql-connector-python
-# mysql
 mysqlclient
+python-multipart

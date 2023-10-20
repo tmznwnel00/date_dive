@@ -6,3 +6,4 @@ passlib[bcrypt]
 mysql-connector-python
 mysqlclient
 python-multipart
+python-dotenv

@@ -4,8 +4,9 @@ from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
-user = os.getenv('USER')
-password = os.getenv('PASSWORD')
+load_dotenv()
+user = os.getenv('DB_USER')
+password = os.getenv('DB_PASSWORD')
 SQLALCHEMY_DATABASE_URL = f"mysql://{user}:{password}@localhost/datedive"
 
 engine = create_engine(
@@ -14,3 +15,11 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

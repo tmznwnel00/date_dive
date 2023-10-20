@@ -3,12 +3,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 # from model import User
 import model
-from database import SessionLocal, engine
+from database import SessionLocal, engine, get_db
 from typing import Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
+
 
 model.Base.metadata.create_all(bind=engine)
 
@@ -37,13 +38,6 @@ def get_password_hash(password):
 
 def get_user(db, username):
     return db.query(model.User).filter(model.User.login_id == username).first()
-    
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
         
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
     to_encode = data.copy()

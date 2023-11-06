@@ -1,26 +1,24 @@
-from fastapi import Depends, FastAPI, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-# from model import User
-from db import models
-from db.base import engine, get_db
+from datetime import datetime, timedelta
 from typing import Union
 
+from fastapi import Depends, HTTPException
+from fastapi import APIRouter
 from jose import jwt
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from starlette import status
+
+from server.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+from server.db import models
+from server.db.base import get_db
 
 
-models.Base.metadata.create_all(bind=engine)
-
-# Acquired by CLI "openssl rand -hex 32"
-SECRET_KEY = "9ff8f5a166924e4cc01ad9682302abf54ac778cf794cbf642074bf3ed58ccaf0"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+router = APIRouter()
 
 
 class SingupInfo(BaseModel):
-    id: str
+    email: str
     password: str
 
 
@@ -30,7 +28,6 @@ class Token(BaseModel):
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-app = FastAPI()
 
 
 def verify_password(plain_password, hashed_password):
@@ -41,8 +38,8 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(db, username):
-    return db.query(models.User).filter(models.User.login_id == username).first()
+def get_user(db, email):
+    return db.query(models.User).filter(models.User.email == email).first()
 
 
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
@@ -52,39 +49,32 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return encoded_jwt
 
 
-@app.get("/")
-def root():
-    return "start"
-
-
-@app.post("/api/user/signup")
+@router.post("/signup")
 def signup(user: SingupInfo, db: Session = Depends(get_db)):
     print(user)
-    username = user.id
+    email = user.email
     password = user.password
 
-    if get_user(db, username):
+    if get_user(db, email):
         raise HTTPException(status_code=409, detail="Username exist")
     else:
-        hashed_password = get_password_hash(password)
-        now = datetime.now()
-        db_user = models.User(login_id=username, password=hashed_password, created_at = now, updated_at = now)
+        db_user = models.User(email=email, password=get_password_hash(password))
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
         return db_user
 
 
-@app.post("/api/user/login")
+@router.post("/login", response_model=Token)
 def login(user: SingupInfo, db: Session = Depends(get_db)):
-    username = user.id
+    email = user.email
     password = user.password
 
-    user = get_user(db, username)
+    user = get_user(db, email)
 
     if (user == None or verify_password(password, user.password) == False):
         raise HTTPException(
@@ -93,8 +83,8 @@ def login(user: SingupInfo, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     else:
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": username}, expires_delta=access_token_expires
+            data={"sub": email}, expires_delta=access_token_expires
         )
         return {"access_token": access_token, "token_type": "bearer"}

@@ -1,9 +1,9 @@
 # from model import User
 from fastapi import FastAPI
 
-from server.db import models
-from server.db.base import engine
-from server import api
+from db import models
+from db.base import engine
+import api
 
 models.Base.metadata.create_all(bind=engine)
 

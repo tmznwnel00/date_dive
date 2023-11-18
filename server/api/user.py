@@ -60,7 +60,7 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
     password = user.password
 
     if get_user(db, email):
-        raise HTTPException(status_code=409, detail="Username exist")
+        raise HTTPException(status_code=409, detail="Email exist")
     else:
         db_user = models.User(email=email, password=get_password_hash(password))
         db.add(db_user)

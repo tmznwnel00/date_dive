@@ -20,6 +20,9 @@ router = APIRouter()
 class SingupInfo(BaseModel):
     email: str
     password: str
+    nickname: str
+    gender: str
+    location: str
 
 
 class Token(BaseModel):
@@ -55,14 +58,16 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 
 @router.post("/signup")
 def signup(user: SingupInfo, db: Session = Depends(get_db)):
-    print(user)
     email = user.email
     password = user.password
+    nickname = user.nickname
+    gender = user.gender
+    location = user.location
 
     if get_user(db, email):
         raise HTTPException(status_code=409, detail="Email exist")
     else:
-        db_user = models.User(email=email, password=get_password_hash(password))
+        db_user = models.User(email=email, password=get_password_hash(password), nickname=nickname, gender=gender, location=location)
         db.add(db_user)
         db.commit()
         db.refresh(db_user)

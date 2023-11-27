@@ -26,11 +26,11 @@ function Login() {
     return (
         <div>
             <div>
-                <input onChange={onChange1} value={email}/>
+                email: <input onChange={onChange1} value={email}/>
             </div>
             <div>
-                <input onChange={onChange2} value={password}/>
-            </div>            
+                password: <input onChange={onChange2} value={password}/>
+            </div>           
             <div>
                 <button onClick={handleSubmit}>
                     login

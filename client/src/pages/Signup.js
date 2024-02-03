@@ -21,10 +21,10 @@ function Signup() {
     const onChangeEmail = (e) => {
         setEmail(e.target.value);
     };
-    const onChange2 = (e) => {
+    const onChangePassword = (e) => {
         setPassword(e.target.value);
     };
-    const onChange3 = (e) => {
+    const onChangeNickname = (e) => {
         setNickname(e.target.value);
     };
     const onLocationChange = (e) => {
@@ -80,10 +80,10 @@ function Signup() {
                 email: <input onChange={onChangeEmail} value={email} />
             </div>
             <div>
-                password: <input onChange={onChange2} value={password} />
+                password: <input onChange={onChangePassword} value={password} />
             </div>
             <div>
-                nickname: <input onChange={onChange3} value={nickname} />
+                nickname: <input onChange={onChangeNickname} value={nickname} />
             </div>
             <div>
                 gender:

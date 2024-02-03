@@ -18,7 +18,7 @@ function Signup() {
     const emailCheck = (email) => {
         return emailRegEx.test(email);
     }
-    const onChange1 = (e) => {
+    const onChangeEmail = (e) => {
         setEmail(e.target.value);
     };
     const onChange2 = (e) => {
@@ -77,7 +77,7 @@ function Signup() {
     return (
         <div>
             <div>
-                email: <input onChange={onChange1} value={email} />
+                email: <input onChange={onChangeEmail} value={email} />
             </div>
             <div>
                 password: <input onChange={onChange2} value={password} />

@@ -9,7 +9,9 @@ function Login() {
         setEmail(e.target.value);
     };
     const onChange2 = (e) => {
-        setPassword(e.target.value);
+        const inputPassword = e.target.value;
+        const maskedPassword = inputPassword.replace(/./g, '*');
+        setPassword(maskedPassword);
     };
     async function handleSubmit() {
         try {

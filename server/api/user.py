@@ -75,7 +75,6 @@ def send_email(to_email, subject, message):
 def send_verification_email(to_email, token):
     subject = "Verify Your Email"
     message = f"Click the following link to verify your email: http://127.0.0.1:8000/api/user/verify?token={token}"
-    
     send_email(to_email, subject, message)
 
 @router.post("/signup")
@@ -135,15 +134,23 @@ def login(user: SingupInfo, db: Session = Depends(get_db)):
 
     user = get_user(db, email)
 
-    if (user == None or verify_password(password, user.password) == False):
+    if user == None: 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    else:
-        access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": email}, expires_delta=access_token_expires
+    if not verify_password(password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Verify email address",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+    access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": email}, expires_delta=access_token_expires
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+        }

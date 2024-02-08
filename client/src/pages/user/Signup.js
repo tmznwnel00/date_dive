@@ -10,7 +10,6 @@ function Signup() {
 
     return (
         <form onSubmit={handleSubmit(async (data) => {
-            console.log(data)
             await signup({ ...data, location: data.mainlocation + ' ' + data.sublocation})
                 .then(() => navigate('/login'))
                 .catch((e) => {

@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Enum, \
     DateTime, JSON, func, Text
 from sqlalchemy.orm import relationship, object_session
 
-from .base import Base
+from base import Base
 
 
 

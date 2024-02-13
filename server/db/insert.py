@@ -9,4 +9,4 @@ def insert_data(data, model):
     db.close()
     
 if __name__ == "__main__":
-    insert_data({"type":"mbti", "name":"enfp"}, Hashtag)
+    insert_data({"type":"mbti", "name":"intj"}, Hashtag)

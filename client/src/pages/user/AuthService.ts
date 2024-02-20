@@ -13,10 +13,7 @@ interface SignupParams {
     location: string;
 }
 export function signup(params: SignupParams) {
-    if (validator.isEmail(params.email)) {
-        return axios.post('/api/user/signup', params)
-    }
-    return Promise.reject(new Error('Email address is not valid'))
+    return axios.post('/api/user/signup', params)
 }
 
 interface LoginParams {

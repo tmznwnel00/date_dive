@@ -2,7 +2,7 @@ from base64 import encodebytes
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from smtplib import SMTP
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends, HTTPException
 from fastapi import APIRouter
@@ -13,8 +13,13 @@ from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import HTMLResponse
 
-from server.config import EMAIL_ADDRESS, EMAIL_PASSWORD, \
-    JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+from server.config import (
+    EMAIL_ADDRESS,
+    EMAIL_PASSWORD,
+    JWT_SECRET_KEY,
+    JWT_ALGORITHM,
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 from server.db import models
 from server.db.base import get_db
 
@@ -46,8 +51,13 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(db, email):
-    return db.query(models.User).filter(models.User.email == email).first()
+def get_user(db, *, email: Optional[str] = None, nickname: Optional[str] = None):
+    q = db.query(models.User)
+    if email:
+        q = q.filter(models.User.email == email)
+    if nickname:
+        q = q.filter(models.User.nickname == nickname)
+    return q.first()
 
 
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
@@ -60,11 +70,12 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return encoded_jwt
 
+
 def send_email(to_email, subject, message):
     msg = MIMEText(message)
-    msg['From'] = EMAIL_ADDRESS
-    msg['To'] = to_email
-    msg['Subject'] = subject
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = to_email
+    msg["Subject"] = subject
     with SMTP("smtp.gmail.com", 587) as server:
         server.ehlo()
         server.starttls()
@@ -72,10 +83,12 @@ def send_email(to_email, subject, message):
         server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
         server.quit()
 
+
 def send_verification_email(to_email, token):
     subject = "Verify Your Email"
     message = f"Click the following link to verify your email: http://127.0.0.1:8000/api/user/verify?token={token}"
     send_email(to_email, subject, message)
+
 
 @router.post("/signup")
 def signup(user: SingupInfo, db: Session = Depends(get_db)):
@@ -85,19 +98,28 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
     gender = user.gender
     location = user.location
 
-    if get_user(db, email):
-        raise HTTPException(status_code=409, detail="Email exist")
+    if get_user(db, email=email):
+        raise HTTPException(status_code=409, detail="This email can not be used")
+    if get_user(db, nickname=nickname):
+        raise HTTPException(status_code=409, detail="Nickname exists")
     else:
-        db_user = models.User(email=email, password=get_password_hash(password), nickname=nickname, gender=gender, location=location)
+        db_user = models.User(
+            email=email,
+            password=get_password_hash(password),
+            nickname=nickname,
+            gender=gender,
+            location=location,
+        )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        
-        verification_token = create_access_token(data={'sub': email})
+
+        verification_token = create_access_token(data={"sub": email})
         send_verification_email(email, verification_token)
-        
+
         return db_user
-    
+
+
 @router.get("/verify")
 async def verify_email(token: str, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -117,24 +139,27 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
     # Mark the user as verified in the database (this should be done in a real database)
     # user = None
-    user = get_user(db, email)
+    user = get_user(db, email=email)
     if user:
         user.verified = True
         db.commit()
         db.close()
-        
-        return HTMLResponse(content="<h1>Email verification successful!</h1>", status_code=200)
+
+        return HTMLResponse(
+            content="<h1>Email verification successful!</h1>", status_code=200
+        )
 
     raise HTTPException(status_code=404, detail="User not found")
+
 
 @router.post("/login", response_model=Token)
 def login(user: SingupInfo, db: Session = Depends(get_db)):
     email = user.email
     password = user.password
 
-    user = get_user(db, email)
+    user = get_user(db, email=email)
 
-    if user == None: 
+    if user == None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -150,7 +175,4 @@ def login(user: SingupInfo, db: Session = Depends(get_db)):
     access_token = create_access_token(
         data={"sub": email}, expires_delta=access_token_expires
     )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-        }
+    return {"access_token": access_token, "token_type": "bearer"}

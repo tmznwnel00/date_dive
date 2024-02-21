@@ -1,17 +1,24 @@
 import validator from 'validator';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, ACCESS_TOKEN } from './AuthService.ts';
 import { useForm } from 'react-hook-form';
 import { Button, FormControl, InputLabel, MenuItem, Select, TextField, FormLabel, RadioGroup, Radio, FormControlLabel, FormHelperText } from '@mui/material';
+import { getLocalStorageValue } from '../../hooks/useStorageHook'
+import useCurrentUser from '../../hooks/useUserHook.js';
 
 
-/**
- * TODO: redirect when already logged in
- */
 function Login() {
     const navigate = useNavigate();
     const { register, handleSubmit, formState: { errors }} = useForm();
+
+    // Redirect to the home page when auth token is set
+    const user = useCurrentUser()
+    useEffect(() => {
+        if (user) {
+            navigate('/')
+        }
+    }, [user])
 
     return (
         <form onSubmit={handleSubmit(async (data) => {

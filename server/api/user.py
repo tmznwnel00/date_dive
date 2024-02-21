@@ -23,6 +23,7 @@ from server.config import (
 from server.db import models
 from server.db.base import get_db
 from server.utils.authutils import (
+    JWTBearer,
     create_jwt_token,
     get_password_hash,
     get_user,
@@ -40,6 +41,12 @@ class SigninInfo(BaseModel):
 
 
 class SingupInfo(SigninInfo):
+    nickname: str = None
+    gender: str = None
+    location: str = None
+
+
+class EditInfo(BaseModel):
     nickname: str = None
     gender: str = None
     location: str = None
@@ -69,7 +76,7 @@ def send_verification_email(to_email, token):
     send_email(to_email, subject, message)
 
 
-@router.post("/signup")
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(user: SingupInfo, db: Session = Depends(get_db)):
     email = user.email
     password = user.password
@@ -78,9 +85,13 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
     location = user.location
 
     if get_user(db, email=email):
-        raise HTTPException(status_code=409, detail="This email can not be used")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="This email can not be used"
+        )
     if get_user(db, nickname=nickname):
-        raise HTTPException(status_code=409, detail="Nickname exists")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Nickname exists"
+        )
     else:
         db_user = models.User(
             email=email,
@@ -96,13 +107,11 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
         verification_token = create_jwt_token(email)
         send_verification_email(email, verification_token)
 
-        return db_user
-
 
 @router.get("/verify")
 async def verify_email(token: str, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
-        status_code=401,
+        status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
@@ -128,7 +137,9 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
             content="<h1>Email verification successful!</h1>", status_code=200
         )
 
-    raise HTTPException(status_code=404, detail="User not found")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="User not found"
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -152,3 +163,25 @@ def login(user: SigninInfo, db: Session = Depends(get_db)):
         )
     access_token = create_jwt_token(email)
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/myinfo")
+def myinfo(current_user: models.User = Depends(JWTBearer())):
+    # TODO
+    current_user.password = None
+    return current_user
+
+
+@router.post("/edit")
+def edit(
+    info: EditInfo,
+    current_user: models.User = Depends(JWTBearer()),
+    db: Session = Depends(get_db),
+):
+    # TODO
+    current_user.password = None
+    current_user.nickname = info.nickname
+    current_user.gender = info.gender
+    current_user.location = info.location
+    db.commit()
+    db.close()

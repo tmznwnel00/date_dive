@@ -1,10 +1,10 @@
 import axios from "axios";
-import validator from 'validator';
+import { getLocalStorageValue } from "../../hooks/useStorageHook";
 
 
 export const ACCESS_TOKEN = 'access_token'
 axios.interceptors.request.use(function (config) {
-    config.headers.Authorization = `bearer ${localStorage.getItem(ACCESS_TOKEN)}`;
+    config.headers.Authorization = `bearer ${getLocalStorageValue(ACCESS_TOKEN)}`;
     return config;
 });
 
@@ -28,7 +28,7 @@ export function login(params: LoginParams) {
     return axios.post('/api/user/login', params)
         .then(resp => {
             if (resp.data.access_token) {
-                localStorage.setItem(ACCESS_TOKEN, resp.data.access_token);
+                localStorage.setItem(ACCESS_TOKEN, JSON.stringify(resp.data.access_token));
             }
             return resp.data
         });

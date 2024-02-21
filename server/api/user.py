@@ -22,14 +22,23 @@ from server.config import (
 )
 from server.db import models
 from server.db.base import get_db
+from server.utils.authutils import (
+    create_jwt_token,
+    get_password_hash,
+    jwt_decode,
+    verify_password,
+)
 
 
 router = APIRouter()
 
 
-class SingupInfo(BaseModel):
+class SigninInfo(BaseModel):
     email: str
     password: str
+
+
+class SingupInfo(SigninInfo):
     nickname: str = None
     gender: str = None
     location: str = None
@@ -40,17 +49,6 @@ class Token(BaseModel):
     token_type: str
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
 def get_user(db, *, email: Optional[str] = None, nickname: Optional[str] = None):
     q = db.query(models.User)
     if email:
@@ -58,17 +56,6 @@ def get_user(db, *, email: Optional[str] = None, nickname: Optional[str] = None)
     if nickname:
         q = q.filter(models.User.nickname == nickname)
     return q.first()
-
-
-def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-    return encoded_jwt
 
 
 def send_email(to_email, subject, message):
@@ -114,7 +101,7 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
 
-        verification_token = create_access_token(data={"sub": email})
+        verification_token = create_jwt_token(email)
         send_verification_email(email, verification_token)
 
         return db_user
@@ -130,8 +117,8 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
     try:
         # Decode the token to get the email
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        email: str = payload.get("sub")
+        payload = jwt_decode(token)
+        email: str = payload.sub
         if email is None:
             raise credentials_exception
     except JWTError:
@@ -153,7 +140,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(user: SingupInfo, db: Session = Depends(get_db)):
+def login(user: SigninInfo, db: Session = Depends(get_db)):
     email = user.email
     password = user.password
 
@@ -171,8 +158,5 @@ def login(user: SingupInfo, db: Session = Depends(get_db)):
             detail="Verify email address",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": email}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_jwt_token(email)
+    return Token(access_token=access_token, token_type="bearer")

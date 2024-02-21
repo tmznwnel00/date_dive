@@ -25,6 +25,7 @@ from server.db.base import get_db
 from server.utils.authutils import (
     create_jwt_token,
     get_password_hash,
+    get_user,
     jwt_decode,
     verify_password,
 )
@@ -47,15 +48,6 @@ class SingupInfo(SigninInfo):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-def get_user(db, *, email: Optional[str] = None, nickname: Optional[str] = None):
-    q = db.query(models.User)
-    if email:
-        q = q.filter(models.User.email == email)
-    if nickname:
-        q = q.filter(models.User.nickname == nickname)
-    return q.first()
 
 
 def send_email(to_email, subject, message):

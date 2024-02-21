@@ -1,7 +1,7 @@
 import validator from 'validator';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from './AuthService.ts';
+import { login, ACCESS_TOKEN } from './AuthService.ts';
 import { useForm } from 'react-hook-form';
 import { Button, FormControl, InputLabel, MenuItem, Select, TextField, FormLabel, RadioGroup, Radio, FormControlLabel, FormHelperText } from '@mui/material';
 
@@ -16,7 +16,9 @@ function Login() {
     return (
         <form onSubmit={handleSubmit(async (data) => {
             await login(data)
-                .then(() => navigate('/'))
+                .then(() => {
+                    navigate('/')
+                })
                 .catch(e => {
                     alert('Login Failed');
                     console.error(e);

@@ -2,8 +2,11 @@ import axios from "axios";
 import validator from 'validator';
 
 
-const USER = 'user'
-
+export const ACCESS_TOKEN = 'access_token'
+axios.interceptors.request.use(function (config) {
+    config.headers.Authorization = `bearer ${localStorage.getItem(ACCESS_TOKEN)}`;
+    return config;
+});
 
 interface SignupParams {
     email: string;
@@ -20,22 +23,25 @@ interface LoginParams {
     email: string;
     password: string;
 }
+
 export function login(params: LoginParams) {
     return axios.post('/api/user/login', params)
         .then(resp => {
             if (resp.data.access_token) {
-                localStorage.setItem(USER, JSON.stringify(resp.data));
+                localStorage.setItem(ACCESS_TOKEN, resp.data.access_token);
             }
             return resp.data
         });
 }
 
+
 export function logout() {
-    localStorage.removeItem(USER)
+    localStorage.removeItem(ACCESS_TOKEN)
 }
 
 export default {
     signup,
     login,
     logout,
+    ACCESS_TOKEN,
 }

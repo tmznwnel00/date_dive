@@ -22,7 +22,7 @@ class User(Base):
     email = Column(String(100), nullable=False, unique=True, index=True)
     password = Column(String(100), nullable=False)
     verified = Column(Boolean, nullable=False, default=False)
-    nickname = Column(String(15), unique=True)
+    nickname = Column(String(15), unique=True, index=True)
     gender = Column(Enum('male', 'female'))
     age = Column(Integer)
     location = Column(String(100))

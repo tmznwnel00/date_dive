@@ -2,7 +2,7 @@ from base64 import encodebytes
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from smtplib import SMTP
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends, HTTPException
 from fastapi import APIRouter
@@ -13,18 +13,40 @@ from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import HTMLResponse
 
-from server.config import EMAIL_ADDRESS, EMAIL_PASSWORD, \
-    JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+from server.config import (
+    EMAIL_ADDRESS,
+    EMAIL_PASSWORD,
+    JWT_SECRET_KEY,
+    JWT_ALGORITHM,
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 from server.db import models
 from server.db.base import get_db
+from server.utils.authutils import (
+    JWTBearer,
+    create_jwt_token,
+    get_password_hash,
+    get_user,
+    jwt_decode,
+    verify_password,
+)
 
 
 router = APIRouter()
 
 
-class SingupInfo(BaseModel):
+class SigninInfo(BaseModel):
     email: str
     password: str
+
+
+class SingupInfo(SigninInfo):
+    nickname: str = None
+    gender: str = None
+    location: str = None
+
+
+class EditInfo(BaseModel):
     nickname: str = None
     gender: str = None
     location: str = None
@@ -35,36 +57,11 @@ class Token(BaseModel):
     token_type: str
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def get_user(db, email):
-    return db.query(models.User).filter(models.User.email == email).first()
-
-
-def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-    return encoded_jwt
-
 def send_email(to_email, subject, message):
     msg = MIMEText(message)
-    msg['From'] = EMAIL_ADDRESS
-    msg['To'] = to_email
-    msg['Subject'] = subject
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = to_email
+    msg["Subject"] = subject
     with SMTP("smtp.gmail.com", 587) as server:
         server.ehlo()
         server.starttls()
@@ -72,12 +69,14 @@ def send_email(to_email, subject, message):
         server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
         server.quit()
 
+
 def send_verification_email(to_email, token):
     subject = "Verify Your Email"
     message = f"Click the following link to verify your email: http://127.0.0.1:8000/api/user/verify?token={token}"
     send_email(to_email, subject, message)
 
-@router.post("/signup")
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(user: SingupInfo, db: Session = Depends(get_db)):
     email = user.email
     password = user.password
@@ -85,31 +84,42 @@ def signup(user: SingupInfo, db: Session = Depends(get_db)):
     gender = user.gender
     location = user.location
 
-    if get_user(db, email):
-        raise HTTPException(status_code=409, detail="Email exist")
+    if get_user(db, email=email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="This email can not be used"
+        )
+    if get_user(db, nickname=nickname):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Nickname exists"
+        )
     else:
-        db_user = models.User(email=email, password=get_password_hash(password), nickname=nickname, gender=gender, location=location)
+        db_user = models.User(
+            email=email,
+            password=get_password_hash(password),
+            nickname=nickname,
+            gender=gender,
+            location=location,
+        )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        
-        verification_token = create_access_token(data={'sub': email})
+
+        verification_token = create_jwt_token(email)
         send_verification_email(email, verification_token)
-        
-        return db_user
-    
+
+
 @router.get("/verify")
 async def verify_email(token: str, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
-        status_code=401,
+        status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
     try:
         # Decode the token to get the email
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        email: str = payload.get("sub")
+        payload = jwt_decode(token)
+        email: str = payload.sub
         if email is None:
             raise credentials_exception
     except JWTError:
@@ -117,24 +127,29 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
     # Mark the user as verified in the database (this should be done in a real database)
     # user = None
-    user = get_user(db, email)
+    user = get_user(db, email=email)
     if user:
         user.verified = True
         db.commit()
         db.close()
-        
-        return HTMLResponse(content="<h1>Email verification successful!</h1>", status_code=200)
 
-    raise HTTPException(status_code=404, detail="User not found")
+        return HTMLResponse(
+            content="<h1>Email verification successful!</h1>", status_code=200
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="User not found"
+    )
+
 
 @router.post("/login", response_model=Token)
-def login(user: SingupInfo, db: Session = Depends(get_db)):
+def login(user: SigninInfo, db: Session = Depends(get_db)):
     email = user.email
     password = user.password
 
-    user = get_user(db, email)
+    user = get_user(db, email=email)
 
-    if user == None: 
+    if user == None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -146,11 +161,27 @@ def login(user: SingupInfo, db: Session = Depends(get_db)):
             detail="Verify email address",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": email}, expires_delta=access_token_expires
-    )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-        }
+    access_token = create_jwt_token(email)
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/myinfo")
+def myinfo(current_user: models.User = Depends(JWTBearer())):
+    # TODO
+    current_user.password = None
+    return current_user
+
+
+@router.post("/edit")
+def edit(
+    info: EditInfo,
+    current_user: models.User = Depends(JWTBearer()),
+    db: Session = Depends(get_db),
+):
+    # TODO
+    current_user.password = None
+    current_user.nickname = info.nickname
+    current_user.gender = info.gender
+    current_user.location = info.location
+    db.commit()
+    db.close()
